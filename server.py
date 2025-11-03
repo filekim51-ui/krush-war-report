@@ -93,18 +93,21 @@ if __name__ == "__main__":
     import nest_asyncio
     nest_asyncio.apply()
 
-    loop = asyncio.get_event_loop()
-
-    async def start():
+    async def start_client():
         try:
+            print("🚀 Logging in to Clash of Clans API...")
             await client.login_with_tokens(
-                COC_EMAIL, 
-                COC_PASSWORD, 
+                email=COC_EMAIL,
+                password=COC_PASSWORD,
                 keys=[os.environ.get("COC_KEY")]
             )
-            print("✅ Logged into Clash of Clans API successfully")
+            print("✅ Login successful! Connected to Clash of Clans API.")
         except Exception as e:
             print("❌ Login failed:", e)
+            raise SystemExit("Cannot start Flask without API connection.")
 
-    loop.run_until_complete(start())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(start_client())
+
+    print("🌍 Flask server starting on port 10000...")
     app.run(host="0.0.0.0", port=10000)
