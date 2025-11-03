@@ -95,19 +95,20 @@ if __name__ == "__main__":
 
     async def start_client():
         try:
-            print("🚀 Logging in to Clash of Clans API...")
+            print("🚀 Logging into Clash of Clans API...")
+            print("📧 Email:", COC_EMAIL)
+            print("🔑 Key starts with:", str(os.environ.get("COC_KEY"))[:20])
             await client.login_with_tokens(
                 email=COC_EMAIL,
                 password=COC_PASSWORD,
                 keys=[os.environ.get("COC_KEY")]
             )
-            print("✅ Login successful! Connected to Clash of Clans API.")
+            print("✅ Login successful.")
         except Exception as e:
             print("❌ Login failed:", e)
-            raise SystemExit("Cannot start Flask without API connection.")
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(start_client())
 
-    print("🌍 Flask server starting on port 10000...")
+    print("🌍 Flask server starting...")
     app.run(host="0.0.0.0", port=10000)
