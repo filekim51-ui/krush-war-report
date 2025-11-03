@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Clan War Dashboard</title>
+  <style>
+    body { font-family: system-ui, Arial; background:#0f1115; color:#e8eaed; margin:0; padding:2rem; }
+    h1 { margin:0 0 1rem 0; }
+    .wrap { display:grid; gap:1rem; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .card { background:#1a1e24; padding:1rem 1.2rem; border-radius:16px; box-shadow: 0 10px 20px rgba(0,0,0,.2); }
+    .big { font-size:1.1rem; }
+    .meta { color:#9aa0a6; font-size:.9rem; }
+    ul { margin:.4rem 0 0 1rem; }
+    select { background:#1a1e24; color:#e8eaed; border:1px solid #333; border-radius:8px; padding:.3rem .6rem; }
+  </style>
+</head>
+<body>
+  <h1>Clan War Dashboard</h1>
+  <div class="meta">Timezone:
+    <select id="tz"></select>
+  </div>
+  <div class="wrap" id="cards"></div>
+
+  <script>
+  // >>>> SET THIS TO YOUR RENDER URL <<<<
+  const API_URL = "https://YOUR-RENDER-APP.onrender.com/warsummary";
+
+  // timezone selector
+  const tzSelect = document.getElementById("tz");
+  const zones = Intl.supportedValuesOf ? Intl.supportedValuesOf("timeZone") : ["UTC"];
+  zones.forEach(z => {
+    const o = document.createElement("option");
+    o.value = z; o.textContent = z;
+    tzSelect.appendChild(o);
+  });
+  tzSelect.value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+  function fmtEnd(iso, zone) {
+    if (!iso) return "unknown";
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric", minute: "2-digit",
+      month: "short", day: "numeric",
+      timeZone: zone
+    }).format(d);
+  }
+
+  async function load() {
+    const r = await fetch(API_URL, { cache: "no-store" });
+    const arr = await r.json();
+    const cards = document.getElementById("cards");
+    cards.innerHTML = "";
+    arr.forEach(c => {
+      if (c.error) {
+        cards.innerHTML += `
+          <div class="card">
+            <div class="big"><b>${c.clan}</b></div>
+            <div class="meta">${c.error}</div>
+          </div>`;
+        return;
+      }
+      if (c.state === "notInWar") {
+        cards.innerHTML += `
+          <div class="card">
+            <div class="big"><b>${c.clan}</b></div>
+            <div class="meta">Not in war</div>
+          </div>`;
+        return;
+      }
+      const missing = (c.missingPlayers && c.missingPlayers.length)
+        ? `<ul>${c.missingPlayers.map(n=>`<li>${n}</li>`).join("")}</ul>`
+        : `<div class="meta">All attacks done ✅</div>`;
+      cards.innerHTML += `
+        <div class="card">
+          <div class="big"><b>${c.clan}</b></div>
+          <div class="meta">${c.timeLeft ? `${c.timeLeft} remaining` : ""}</div>
+          <div class="big">⭐ ${c.stars} stars — ⛏️ ${c.attacksRemaining} attacks remaining</div>
+          <div class="meta">War ends at ${fmtEnd(c.endTimeISO, tzSelect.value)}</div>
+          <div style="margin-top:.6rem"><b>Missing attacks:</b>${missing}</div>
+        </div>`;
+    });
+  }
+
+  tzSelect.addEventListener("change", load);
+  load();
+  setInterval(load, 60_000);
+  </script>
+</body>
+</html>
