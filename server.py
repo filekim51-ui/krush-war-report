@@ -17,22 +17,30 @@ CLANS = {
     "불난 집에 부채질": "#9VPPJU8Y",
 }
 
-# --- Initialize coc.py client ---
-client = coc.Client(key_names="auto-refresh")
+# --- Initialize coc.py v3 client (no key_names now) ---
+client = coc.Client()
+
+async def login():
+    """Login using the new coc.py v3 syntax."""
+    await client.login(email=COC_EMAIL, password=COC_PASSWORD)
+    print("✅ Logged into Clash of Clans API")
 
 def time_diff_str(dt):
     delta = dt - datetime.datetime.now(datetime.timezone.utc)
-    hrs, rem = divmod(int(delta.total_seconds()), 3600)
+    secs = int(delta.total_seconds())
+    hrs, rem = divmod(abs(secs), 3600)
     mins = rem // 60
-    sign = "" if delta.total_seconds() >= 0 else "-"
-    return f"{sign}{abs(hrs)}h {abs(mins)}m"
+    sign = "" if secs >= 0 else "-"
+    return f"{sign}{hrs}h {mins}m"
 
 def run_async(coro):
-    """Allows async functions to run in Flask routes"""
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        return asyncio.ensure_future(coro)
-    return loop.run_until_complete(coro)
+    """Allows async functions to run in Flask routes."""
+    loop = asyncio.new_event_loop()
+    try:
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 async def fetch_war_summary(tag):
     try:
@@ -57,6 +65,8 @@ async def fetch_war_summary(tag):
             "end_time": "N/A",
             "type": "",
         }
+    except coc.NotFound:
+        return {"state": "notInWar", "missing": ["N/A"], "type": ""}
 
     # handle no war
     if war.state == "notInWar":
@@ -68,10 +78,7 @@ async def fetch_war_summary(tag):
     if war.state == "preparation":
         missing = ["NA"]
     else:
-        missing = [
-            m.name for m in clan.members
-            if len(m.attacks) < attacks_per_member
-        ]
+        missing = [m.name for m in clan.members if len(m.attacks) < attacks_per_member]
 
     start_in = time_diff_str(war.start_time) if war.start_time else "N/A"
     end_in = time_diff_str(war.end_time) if war.end_time else "N/A"
@@ -89,10 +96,17 @@ async def fetch_war_summary(tag):
 @app.route("/warsummary")
 def summarize_all():
     results = []
-    for name, tag in CLANS.items():
-        data = run_async(fetch_war_summary(tag))
-        data["clan"] = name
-        results.append(data)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    async def gather_all():
+        tasks = [fetch_war_summary(tag) for tag in CLANS.values()]
+        return await asyncio.gather(*tasks)
+
+    data = loop.run_until_complete(gather_all())
+    for (name, tag), d in zip(CLANS.items(), data):
+        d["clan"] = name
+        results.append(d)
 
     html = """
     <html><body style="font-family: Menlo, monospace;">
@@ -110,6 +124,5 @@ def summarize_all():
     return render_template_string(html, results=results)
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(client.login(COC_EMAIL, COC_PASSWORD))
+    asyncio.run(login())
     app.run(host="0.0.0.0", port=10000)
