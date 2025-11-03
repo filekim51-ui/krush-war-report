@@ -90,13 +90,19 @@ def summarize_all():
 
 
 if __name__ == "__main__":
+    import nest_asyncio
     nest_asyncio.apply()
+
     loop = asyncio.get_event_loop()
 
     async def start():
         try:
-            await client.login(COC_EMAIL, COC_PASSWORD)
-            print("✅ Logged into Clash of Clans API")
+            await client.login_with_tokens(
+                COC_EMAIL, 
+                COC_PASSWORD, 
+                keys=[os.environ.get("COC_KEY")]
+            )
+            print("✅ Logged into Clash of Clans API successfully")
         except Exception as e:
             print("❌ Login failed:", e)
 
