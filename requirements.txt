@@ -2,3 +2,4 @@ Flask==3.0.0
 requests==2.32.3
 gunicorn==21.2.0
 coc.py==3.0.0
+nest_asyncio==1.6.0
